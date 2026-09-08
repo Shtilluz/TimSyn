@@ -799,6 +799,10 @@ class App(tk.Tk):
         auto    = self.v_auto_apply.get()
         lang    = self._lang
 
+        if not host:
+            self._log(LANGS[lang]["log_sync_err"].format("No upstream address set"))
+            return
+
         def _do():
             try:
                 t      = query_ntp(host, port)

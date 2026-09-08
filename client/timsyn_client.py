@@ -365,6 +365,8 @@ class App(tk.Tk):
         self._set_window_icon()
         self._tick()
         self._init_tray()
+        if self.cfg.get("sync_interval", 0) > 0:
+            self.after(1500, self._restart_auto)
 
     # ── перевод ──────────────────────────────────────────────────────────────
 
@@ -506,6 +508,7 @@ class App(tk.Tk):
         self.lbl_st_key.config(text=t("lbl_srvtime"))
         self.lbl_off_key.config(text=t("lbl_offset"))
         self.lbl_rtt_key.config(text=t("lbl_rtt"))
+        self.lbl_status.config(text=t("st_idle"), foreground="gray")
         priv_key = "lbl_priv_ok" if self._admin else "lbl_priv_no"
         self.lbl_priv.config(text=t(priv_key))
         if self.btn_runas:
