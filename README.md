@@ -1,148 +1,175 @@
+<div align="right">
+
+🌐 **Language / Язык / Til:** &nbsp; **English** &nbsp;|&nbsp; [Русский](README.ru.md) &nbsp;|&nbsp; [O'zbek](README.uz.md)
+
+</div>
+
 # TimSyn — NTP Time Synchronization Suite
 
 <div align="center">
 
-**Локальный NTP-сервер + клиент для синхронизации времени в сети без интернета**
+**Local NTP server + client for time synchronization on networks without internet access**
 
-[![Build](https://github.com/midgrouz/timsyn/actions/workflows/build.yml/badge.svg)](https://github.com/midgrouz/timsyn/actions)
+[![Build](https://github.com/Shtilluz/TimSyn/actions/workflows/build.yml/badge.svg)](https://github.com/Shtilluz/TimSyn/actions)
 [![License: MOAL](https://img.shields.io/badge/License-MOAL_v1.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)]()
+[![Languages](https://img.shields.io/badge/UI-EN%20%7C%20RU%20%7C%20UZ-green.svg)]()
 
 ---
 
-### Разработано [MIDGRO.UZ](https://midgro.uz)
+### Developed by [MIDGRO.UZ](https://midgro.uz)
 **info@midgro.uz**
 
 </div>
 
 ---
 
-## Что это
+## What is it
 
-TimSyn — это пара лёгких программ с графическим интерфейсом для синхронизации времени в изолированных локальных сетях без доступа в интернет.
+TimSyn is a pair of lightweight GUI applications for time synchronization in isolated local networks without internet access.
 
 ```
-[Интернет] ──► [TimSyn Server] ──► [Локальная сеть]
-  pool.ntp.org   (1 машина)         TimSyn Client ×N
-                                     (все остальные ПК)
+[Internet] ──► [TimSyn Server] ──► [Local Network]
+ pool.ntp.org   (1 machine)          TimSyn Client ×N
+                                      (all other PCs)
 ```
 
-**Сервер** ставится на одну машину с интернетом — тянет точное время с NTP и раздаёт его в локалку.  
-**Клиент** ставится на все остальные ПК — получает время с сервера и устанавливает на системные часы.
+**Server** — installed on the one machine with internet access. Pulls accurate time from NTP and serves it to the local network.  
+**Client** — installed on all other PCs. Gets time from the server and sets the system clock.
 
 ---
 
-## Возможности
+## Features
 
-| Функция | Сервер | Клиент |
+| Feature | Server | Client |
 |---|:---:|:---:|
-| Синхронизация с публичным NTP | ✓ | — |
-| Работа как NTP-сервер | ✓ | — |
-| Получение времени из локальной сети | — | ✓ |
-| Установка системного времени | ✓ | ✓ |
-| Авто-синхронизация по таймеру | ✓ | ✓ |
-| Настройка портов (вх./исх.) | ✓ | ✓ |
-| Выбор сетевого интерфейса | ✓ | — |
-| Показ отклонения и RTT | ✓ | ✓ |
-| Интерфейс EN / RU / UZ | ✓ | ✓ |
-| Работа без установки доп. ПО | ✓ | ✓ |
+| Sync from public NTP (internet) | ✓ | — |
+| Acts as NTP server for local network | ✓ | — |
+| Sync from another TimSyn / NTP server | ✓ | — |
+| Receive time from local network | — | ✓ |
+| Set system clock | ✓ | ✓ |
+| Auto-sync on a timer | ✓ | ✓ |
+| Configurable ports (in / out) | ✓ | ✓ |
+| Choose network interface | ✓ | — |
+| Show offset and RTT | ✓ | ✓ |
+| EN / RU / UZ interface | ✓ | ✓ |
+| Minimize to system tray | ✓ | ✓ |
+| Run at system startup (autostart) | ✓ | ✓ |
+| Restart as Administrator | ✓ | ✓ |
+| No additional software required | ✓ | ✓ |
 
 ---
 
-## Скачать
+## Download
 
-> Готовые бинарники собираются автоматически через GitHub Actions.
+> Ready-to-run binaries are built automatically via GitHub Actions.
 
-| Платформа | Файл |
+| Platform | Files |
 |---|---|
 | Windows | `TimSyn_Server.exe`, `TimSyn_Client.exe` |
 | Linux x86-64 | `TimSyn_Server`, `TimSyn_Client` |
 
-Скачать последнюю сборку: **[Actions → последний успешный run → Artifacts](../../actions)**
+Download the latest build: **[Actions → latest successful run → Artifacts](../../actions)**
 
 ---
 
-## Быстрый старт
+## Quick Start
 
 ### Windows
 ```
-1. Скачать TimSyn_Server.exe → запустить от Администратора
-2. Указать NTP-сервер (по умолчанию pool.ntp.org)
-3. Нажать "Запустить сервер"
+Server (machine with internet):
+  1. Download TimSyn_Server.exe → run as Administrator
+  2. Set NTP server (default: pool.ntp.org)
+  3. Click "Start Server" — it starts automatically on launch
 
-На клиентских ПК:
-1. Скачать TimSyn_Client.exe → запустить
-2. Указать IP сервера и порт
-3. Нажать "Синхронизировать"
+Client (all other PCs):
+  1. Download TimSyn_Client.exe → run
+  2. Enter the server IP and port
+  3. Click "Synchronize"
 ```
 
 ### Linux
 ```bash
 chmod +x TimSyn_Server TimSyn_Client
-sudo ./TimSyn_Server    # sudo нужен для порта 123
+
+# Server (needs root for port 123):
+sudo ./TimSyn_Server
+
+# Client:
 ./TimSyn_Client
 ```
 
-> **Порт 123** требует прав администратора/root.  
-> Альтернатива — поставить любой порт выше 1024 (например **1234**) в настройках сервера и клиента.
+> **Port 123** requires Administrator / root privileges.  
+> Alternative: set any port above 1024 (e.g. **12300**) in both server and client settings.
 
 ---
 
-## Запуск из исходников
+## Run from source
 
-Требуется Python 3.8+ с tkinter (входит в стандартную установку).
+Requires Python 3.8+ with tkinter (included in standard Python installs).
 
 ```bash
-git clone https://github.com/midgrouz/timsyn.git
-cd timsyn
+git clone https://github.com/Shtilluz/TimSyn.git
+cd TimSyn
 
-python server/timsyn_server.py   # на машине с интернетом
-python client/timsyn_client.py   # на локальных машинах
+# On the machine with internet:
+python server/timsyn_server.py
+
+# On local network machines:
+python client/timsyn_client.py
+```
+
+Optional (for system tray icon):
+```bash
+pip install pystray Pillow
 ```
 
 ---
 
-## Сборка .exe / бинарника
+## Build standalone executables
 
 ```bash
-pip install pyinstaller
+pip install pyinstaller pystray Pillow
 python build/build.py
-# Результат: build/dist/TimSyn_Server  и  build/dist/TimSyn_Client
+# Output: build/dist/TimSyn_Server  and  build/dist/TimSyn_Client
 ```
 
-На Windows те же команды дадут `.exe` файлы.
+On Windows the same commands produce `.exe` files.
 
 ---
 
-## Структура проекта
+## Project structure
 
 ```
 TimSyn/
 ├── server/
-│   └── timsyn_server.py     # NTP-сервер с GUI
+│   └── timsyn_server.py     # NTP server with GUI
 ├── client/
-│   └── timsyn_client.py     # NTP-клиент с GUI
+│   └── timsyn_client.py     # NTP client with GUI
 ├── build/
-│   └── build.py             # скрипт сборки бинарников
+│   ├── build.py             # build script
+│   └── make_icon.py         # icon generator
 ├── .github/
 │   └── workflows/
 │       └── build.yml        # GitHub Actions (Windows + Linux)
+├── icon.png                 # application icon
 ├── LICENSE                  # MIDGRO Open Attribution License
 └── README.md
 ```
 
 ---
 
-## Лицензия
+## License
 
-Распространяется под **MIDGRO Open Attribution License (MOAL) v1.0**.  
-Можно использовать, изменять и продавать — при обязательном упоминании [MIDGRO.UZ](https://midgro.uz).  
-Подробности: [LICENSE](LICENSE)
+Distributed under the **MIDGRO Open Attribution License (MOAL) v1.0**.  
+Free to use, modify, and sell — attribution to [MIDGRO.UZ](https://midgro.uz) is required.  
+Details: [LICENSE](LICENSE)
 
 ---
 
 <div align="center">
 
-Сделано с ♥ командой **[MIDGRO.UZ](https://midgro.uz)**  
-По вопросам: **info@midgro.uz**
+Made with ♥ by **[MIDGRO.UZ](https://midgro.uz)**  
+Questions: **info@midgro.uz**
 
 </div>
