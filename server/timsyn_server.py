@@ -61,6 +61,11 @@ LANGS = {
         "btn_about":      "ℹ  Об авторе",
         "about_title":    "Об авторе",
         "about_body":     "TimSyn — NTP синхронизация времени\n\nРазработано: MIDGRO.UZ\nСайт: https://midgro.uz\nКонтакт: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nРаспространяется под лицензией MOAL v1.0\n(можно использовать и продавать при упоминании MIDGRO.UZ)",
+        "chk_autostart":  "Автозапуск при старте системы",
+        "tray_show":      "Открыть",
+        "tray_sync":      "Синхр. сейчас",
+        "tray_exit":      "Выход",
+        "tray_tooltip":   "TimSyn Сервер",
     },
     "EN": {
         "title":          "TimSyn Server",
@@ -99,6 +104,11 @@ LANGS = {
         "btn_about":      "ℹ  About",
         "about_title":    "About",
         "about_body":     "TimSyn — NTP Time Synchronization\n\nDeveloped by: MIDGRO.UZ\nWebsite: https://midgro.uz\nContact: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nDistributed under MOAL v1.0\n(free to use and sell with attribution to MIDGRO.UZ)",
+        "chk_autostart":  "Run at system startup",
+        "tray_show":      "Open",
+        "tray_sync":      "Sync Now",
+        "tray_exit":      "Exit",
+        "tray_tooltip":   "TimSyn Server",
     },
     "UZ": {
         "title":          "TimSyn Server",
@@ -137,6 +147,11 @@ LANGS = {
         "btn_about":      "ℹ  Muallif haqida",
         "about_title":    "Muallif haqida",
         "about_body":     "TimSyn — NTP Vaqt Sinxronizatsiyasi\n\nIshlab chiqaruvchi: MIDGRO.UZ\nSayt: https://midgro.uz\nAloqa: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nMOAL v1.0 litsenziyasi asosida tarqatiladi\n(MIDGRO.UZ ni eslatgan holda foydalanish va sotish mumkin)",
+        "chk_autostart":  "Tizim ishga tushganda avtomatik yoqilsin",
+        "tray_show":      "Ochish",
+        "tray_sync":      "Hozir sinxr.",
+        "tray_exit":      "Chiqish",
+        "tray_tooltip":   "TimSyn Server",
     },
 }
 
@@ -249,6 +264,52 @@ def _set_linux(unix_ts: float):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Автозапуск
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def set_autostart(app_name: str, enable: bool):
+    exe = _get_exe()
+    if platform.system() == "Windows":
+        _autostart_win(app_name, exe, enable)
+    else:
+        _autostart_linux(app_name, exe, enable)
+
+
+def _get_exe() -> str:
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}"'
+    return f'"{sys.executable}" "{os.path.abspath(__file__)}"'
+
+
+def _autostart_win(name: str, exe: str, enable: bool):
+    import winreg
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
+                         winreg.KEY_SET_VALUE)
+    if enable:
+        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, exe)
+    else:
+        try:
+            winreg.DeleteValue(key, name)
+        except FileNotFoundError:
+            pass
+    winreg.CloseKey(key)
+
+
+def _autostart_linux(name: str, exe: str, enable: bool):
+    desktop_dir  = Path.home() / ".config" / "autostart"
+    desktop_file = desktop_dir / f"{name.lower()}.desktop"
+    if enable:
+        desktop_dir.mkdir(parents=True, exist_ok=True)
+        desktop_file.write_text(
+            f"[Desktop Entry]\nType=Application\nName={name}\n"
+            f"Exec={exe}\nHidden=false\nX-GNOME-Autostart-enabled=true\n"
+        )
+    else:
+        desktop_file.unlink(missing_ok=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Конфиг
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -350,10 +411,12 @@ class App(tk.Tk):
         self._lang     = self.cfg.get("language", "RU")
         self.ntp_srv   = None
         self._sync_job = None
+        self._tray     = None
         self.resizable(False, False)
         self._build_ui()
         self._apply_lang()
         self._tick()
+        self._init_tray()
 
     # ── перевод ──────────────────────────────────────────────────────────────
 
@@ -399,6 +462,12 @@ class App(tk.Tk):
         self.chk_auto = ttk.Checkbutton(self.fr_up, text="",
                                          variable=self.v_auto_apply)
         self.chk_auto.grid(row=1, column=2, columnspan=2, sticky="w", **P)
+
+        self.v_autostart = tk.BooleanVar(value=self.cfg.get("autostart", False))
+        self.chk_autostart = ttk.Checkbutton(self.fr_up, text="",
+                                              variable=self.v_autostart,
+                                              command=self._toggle_autostart)
+        self.chk_autostart.grid(row=2, column=0, columnspan=4, sticky="w", **P)
 
         # — Сервер локалки —
         self.fr_srv = ttk.LabelFrame(self, text="")
@@ -475,6 +544,7 @@ class App(tk.Tk):
         self.lbl_outport.config(text=t("lbl_outport"))
         self.lbl_interval.config(text=t("lbl_interval"))
         self.chk_auto.config(text=t("chk_autoset"))
+        self.chk_autostart.config(text=t("chk_autostart"))
         self.fr_srv.config(text=t("fr_server"))
         self.lbl_iface.config(text=t("lbl_iface"))
         self.lbl_inport.config(text=t("lbl_inport"))
@@ -535,6 +605,7 @@ class App(tk.Tk):
             "listen_port":   self.v_listen_port.get(),
             "sync_interval": self.v_interval.get(),
             "auto_apply":    self.v_auto_apply.get(),
+            "autostart":     self.v_autostart.get(),
             "language":      self._lang,
         })
 
@@ -615,6 +686,73 @@ class App(tk.Tk):
             self._sync_now()
             self._schedule_sync()
 
+    # ── трей и автозапуск ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_tray_icon():
+        from PIL import Image, ImageDraw
+        sz = 64
+        img = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
+        d   = ImageDraw.Draw(img)
+        d.ellipse([2, 2, sz-2, sz-2], fill="#005cc5", outline="#003a8c", width=2)
+        cx, cy = sz // 2, sz // 2
+        d.line([cx, cy, cx, cy - 16], fill="white", width=4)   # часовая стрелка
+        d.line([cx, cy, cx + 13, cy + 4], fill="white", width=3)  # минутная
+        d.ellipse([cx-3, cy-3, cx+3, cy+3], fill="white")
+        return img
+
+    def _init_tray(self):
+        try:
+            import pystray
+            lang = self._lang
+            icon = pystray.Icon(
+                "TimSyn_Server",
+                self._make_tray_icon(),
+                title=LANGS[lang]["tray_tooltip"],
+                menu=pystray.Menu(
+                    pystray.MenuItem(
+                        lambda i: LANGS[self._lang]["tray_show"],
+                        self._tray_show, default=True),
+                    pystray.MenuItem(
+                        lambda i: LANGS[self._lang]["tray_sync"],
+                        lambda i: self.after(0, self._sync_now)),
+                    pystray.Menu.SEPARATOR,
+                    pystray.MenuItem(
+                        lambda i: LANGS[self._lang]["tray_exit"],
+                        self._tray_exit),
+                ),
+            )
+            self._tray = icon
+            threading.Thread(target=icon.run, daemon=True).start()
+        except Exception:
+            self._tray = None
+
+    def _hide_to_tray(self):
+        self.withdraw()
+        if self._tray:
+            self._tray.visible = True
+
+    def _tray_show(self, icon=None, item=None):
+        if self._tray:
+            self._tray.visible = False
+        self.after(0, self.deiconify)
+
+    def _tray_exit(self, icon=None, item=None):
+        if self._tray:
+            self._tray.stop()
+        self.after(0, self._quit)
+
+    def _quit(self):
+        self._stop()
+        self.destroy()
+
+    def _toggle_autostart(self):
+        self._collect_cfg()
+        save_config(self.cfg)
+        set_autostart("TimSyn_Server", self.v_autostart.get())
+
+    # ── об авторе ─────────────────────────────────────────────────────────────
+
     def _show_about(self):
         win = tk.Toplevel(self)
         win.title(self.tr("about_title"))
@@ -659,8 +797,10 @@ class App(tk.Tk):
         webbrowser.open(url)
 
     def on_close(self):
-        self._stop()
-        self.destroy()
+        if self._tray:
+            self._hide_to_tray()
+        else:
+            self._quit()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
