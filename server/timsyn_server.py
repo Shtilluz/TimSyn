@@ -58,6 +58,9 @@ LANGS = {
         "win_confirm":    "Вы уверены, что хотите выйти?",
         "win_close":      "Выход",
         "fr_lang":        " Язык / Language ",
+        "btn_about":      "ℹ  Об авторе",
+        "about_title":    "Об авторе",
+        "about_body":     "TimSyn — NTP синхронизация времени\n\nРазработано: MIDGRO.UZ\nСайт: https://midgro.uz\nКонтакт: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nРаспространяется под лицензией MOAL v1.0\n(можно использовать и продавать при упоминании MIDGRO.UZ)",
     },
     "EN": {
         "title":          "TimSyn Server",
@@ -93,6 +96,9 @@ LANGS = {
         "win_confirm":    "Are you sure you want to exit?",
         "win_close":      "Exit",
         "fr_lang":        " Language ",
+        "btn_about":      "ℹ  About",
+        "about_title":    "About",
+        "about_body":     "TimSyn — NTP Time Synchronization\n\nDeveloped by: MIDGRO.UZ\nWebsite: https://midgro.uz\nContact: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nDistributed under MOAL v1.0\n(free to use and sell with attribution to MIDGRO.UZ)",
     },
     "UZ": {
         "title":          "TimSyn Server",
@@ -128,6 +134,9 @@ LANGS = {
         "win_confirm":    "Haqiqatan ham chiqmoqchimisiz?",
         "win_close":      "Chiqish",
         "fr_lang":        " Til / Language ",
+        "btn_about":      "ℹ  Muallif haqida",
+        "about_title":    "Muallif haqida",
+        "about_body":     "TimSyn — NTP Vaqt Sinxronizatsiyasi\n\nIshlab chiqaruvchi: MIDGRO.UZ\nSayt: https://midgro.uz\nAloqa: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nMOAL v1.0 litsenziyasi asosida tarqatiladi\n(MIDGRO.UZ ni eslatgan holda foydalanish va sotish mumkin)",
     },
 }
 
@@ -420,6 +429,8 @@ class App(tk.Tk):
         self.btn_sync.pack(side="left", padx=4)
         self.btn_save = ttk.Button(fr_btn, text="", command=self._save_cfg)
         self.btn_save.pack(side="left", padx=4)
+        self.btn_about = ttk.Button(fr_btn, text="", command=self._show_about)
+        self.btn_about.pack(side="left", padx=4)
 
         # — Статус —
         self.fr_st = ttk.LabelFrame(self, text="")
@@ -471,6 +482,7 @@ class App(tk.Tk):
         self.btn_stop.config(text=t("btn_stop"))
         self.btn_sync.config(text=t("btn_sync"))
         self.btn_save.config(text=t("btn_save"))
+        self.btn_about.config(text=t("btn_about"))
         self.fr_st.config(text=t("fr_status"))
         self.lbl_lt_key.config(text=t("lbl_localtime"))
         self.lbl_nt_key.config(text=t("lbl_ntptime"))
@@ -602,6 +614,49 @@ class App(tk.Tk):
         if self.ntp_srv:
             self._sync_now()
             self._schedule_sync()
+
+    def _show_about(self):
+        win = tk.Toplevel(self)
+        win.title(self.tr("about_title"))
+        win.resizable(False, False)
+        win.grab_set()
+
+        # логотип / название
+        ttk.Label(win, text="TimSyn", font=("TkDefaultFont", 18, "bold"),
+                  foreground="#005cc5").pack(pady=(16, 0))
+        ttk.Label(win, text="NTP Time Synchronization Suite",
+                  foreground="gray").pack(pady=(0, 12))
+
+        ttk.Separator(win).pack(fill="x", padx=16)
+
+        body = self.tr("about_body")
+        ttk.Label(win, text=body, justify="center",
+                  font=("TkDefaultFont", 10)).pack(padx=24, pady=12)
+
+        ttk.Separator(win).pack(fill="x", padx=16)
+
+        # кликабельные ссылки
+        fr_links = ttk.Frame(win)
+        fr_links.pack(pady=8)
+
+        lnk_site = tk.Label(fr_links, text="🌐  https://midgro.uz",
+                             foreground="#005cc5", cursor="hand2",
+                             font=("TkDefaultFont", 10, "underline"))
+        lnk_site.pack()
+        lnk_site.bind("<Button-1>", lambda e: self._open_url("https://midgro.uz"))
+
+        lnk_mail = tk.Label(fr_links, text="✉  info@midgro.uz",
+                             foreground="#005cc5", cursor="hand2",
+                             font=("TkDefaultFont", 10, "underline"))
+        lnk_mail.pack()
+        lnk_mail.bind("<Button-1>", lambda e: self._open_url("mailto:info@midgro.uz"))
+
+        ttk.Button(win, text="OK", command=win.destroy, width=12).pack(pady=12)
+
+    @staticmethod
+    def _open_url(url: str):
+        import webbrowser
+        webbrowser.open(url)
 
     def on_close(self):
         self._stop()
