@@ -35,6 +35,25 @@ TimSyn is a pair of lightweight GUI applications for time synchronization in iso
 
 ---
 
+## Why TimSyn and not ntpd / w32tm?
+
+Traditional NTP tools require editing config files, managing services, and knowing your way around the command line — that's fine for sysadmins, but not for everyone.
+
+**TimSyn is built for simplicity:**
+
+| Traditional NTP setup | TimSyn |
+|---|---|
+| Edit `/etc/ntp.conf` or Group Policy | Just run the app |
+| Configure firewall rules manually | One port field in the UI |
+| No visual feedback — check logs | Live offset, RTT, color-coded status |
+| Separate server and client daemons | One `.exe` per role, double-click to start |
+| Requires IT knowledge to deploy | Works for any user, any PC |
+
+> **Server:** run → auto-starts → done.  
+> **Client:** run → enter server IP → synchronized.
+
+---
+
 ## Features
 
 | Feature | Server | Client |

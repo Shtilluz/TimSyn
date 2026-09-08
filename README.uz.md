@@ -35,6 +35,25 @@ TimSyn — internetga ulanmagan izolyatsiya qilingan lokal tarmoqlarda vaqtni si
 
 ---
 
+## Nega TimSyn, ntpd / w32tm emas?
+
+Oddiy NTP vositalari konfiguratsiya fayllarini tahrirlashni, xizmatlarni sozlashni va buyruq satri bilan ishlashni talab qiladi — bu tizim administratori uchun yaxshi, lekin oddiy foydalanuvchi uchun emas.
+
+**TimSyn soddalik uchun yaratilgan:**
+
+| Oddiy NTP sozlamalari | TimSyn |
+|---|---|
+| `/etc/ntp.conf` yoki guruh siyosatini tahrirlash | Dasturni ishga tushirish kifoya |
+| Xavfsizlik devori qoidalarini qo'lda sozlash | Interfeysda bitta «Port» maydoni |
+| Vizual holat yo'q — loglarga qarang | Farq, RTT, rang ko'rsatkichlari |
+| Server va mijoz uchun alohida daemonlar | Har bir rol uchun bitta `.exe`, ikki marta bosish |
+| Joylashtirish uchun IT bilimlari kerak | Har qanday foydalanuvchi, har qanday PK uchun |
+
+> **Server:** ishga tushirdi → o'zi boshlaydi → tayyor.  
+> **Mijoz:** ishga tushirdi → server IP sini kiritdi → sinxronlashdi.
+
+---
+
 ## Imkoniyatlar
 
 | Funksiya | Server | Mijoz |
