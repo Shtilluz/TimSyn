@@ -73,6 +73,9 @@ LANGS = {
         "tray_sync":      "Синхр. сейчас",
         "tray_exit":      "Выход",
         "tray_tooltip":   "TimSyn Сервер",
+        "btn_runas":      "🔒  Перезапустить от Администратора",
+        "lbl_priv_ok":    "✔  Права администратора",
+        "lbl_priv_no":    "⚠  Нет прав администратора — порт 123 недоступен",
     },
     "EN": {
         "title":          "TimSyn Server",
@@ -123,6 +126,9 @@ LANGS = {
         "tray_sync":      "Sync Now",
         "tray_exit":      "Exit",
         "tray_tooltip":   "TimSyn Server",
+        "btn_runas":      "🔒  Restart as Administrator",
+        "lbl_priv_ok":    "✔  Running as Administrator",
+        "lbl_priv_no":    "⚠  No admin rights — port 123 unavailable",
     },
     "UZ": {
         "title":          "TimSyn Server",
@@ -173,6 +179,9 @@ LANGS = {
         "tray_sync":      "Hozir sinxr.",
         "tray_exit":      "Chiqish",
         "tray_tooltip":   "TimSyn Server",
+        "btn_runas":      "🔒  Administrator sifatida qayta ishga tushirish",
+        "lbl_priv_ok":    "✔  Administrator huquqlari mavjud",
+        "lbl_priv_no":    "⚠  Administrator huquqi yo'q — 123 port mavjud emas",
     },
 }
 
@@ -282,6 +291,40 @@ def _set_linux(unix_ts: float):
         return False, r.stderr.strip() or "sudo date failed"
     except Exception as e2:
         return False, f"clock_settime: permission denied; sudo date: {e2}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Привилегии
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def is_admin() -> bool:
+    try:
+        if platform.system() == "Windows":
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        return os.geteuid() == 0
+    except Exception:
+        return False
+
+
+def restart_as_admin():
+    """Перезапустить текущий процесс с правами администратора."""
+    exe = sys.executable
+    if platform.system() == "Windows":
+        # ShellExecute с глаголом "runas" вызывает UAC-диалог
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, "", None, 1)
+    else:
+        # Linux/macOS: pkexec (графический sudo), иначе gksudo, иначе sudo
+        for launcher in ("pkexec", "gksudo", "kdesudo"):
+            if subprocess.call(["which", launcher],
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 0:
+                subprocess.Popen([launcher, exe])
+                break
+        else:
+            # Нет GUI-sudo — открываем терминал с sudo
+            subprocess.Popen(["sudo", exe])
+    # Текущий процесс завершается — новый запустится с правами
+    os._exit(0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -562,9 +605,31 @@ class App(tk.Tk):
         self.btn_about = ttk.Button(fr_btn, text="", command=self._show_about)
         self.btn_about.pack(side="left", padx=4)
 
+        # — Строка привилегий + кнопка перезапуска —
+        fr_priv = ttk.Frame(self)
+        fr_priv.grid(row=4, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 2))
+
+        self._admin = is_admin()
+        priv_color  = "#22863a" if self._admin else "#d73a49"
+        priv_key    = "lbl_priv_ok" if self._admin else "lbl_priv_no"
+        self.lbl_priv = ttk.Label(fr_priv, text="", foreground=priv_color,
+                                   font=("TkDefaultFont", 9, "bold"))
+        self.lbl_priv.pack(side="left")
+
+        # Кнопка показывается только если НЕ администратор
+        if not self._admin:
+            self.btn_runas = ttk.Button(fr_priv, text="",
+                                        command=self._do_restart_as_admin)
+            self.btn_runas.pack(side="right", padx=4)
+        else:
+            self.btn_runas = None
+
+        ttk.Separator(self, orient="horizontal").grid(
+            row=5, column=0, columnspan=2, sticky="ew", padx=8, pady=2)
+
         # — Статус —
         self.fr_st = ttk.LabelFrame(self, text="")
-        self.fr_st.grid(row=4, column=0, columnspan=2, sticky="ew", **P)
+        self.fr_st.grid(row=6, column=0, columnspan=2, sticky="ew", **P)
 
         self.lbl_lt_key = ttk.Label(self.fr_st, text="")
         self.lbl_lt_key.grid(row=0, column=0, sticky="w", **P)
@@ -589,7 +654,7 @@ class App(tk.Tk):
         # — Лог —
         self.log = scrolledtext.ScrolledText(self, height=12, width=74,
                                               state="disabled", font=("Courier", 9))
-        self.log.grid(row=5, column=0, columnspan=2, padx=8, pady=4)
+        self.log.grid(row=7, column=0, columnspan=2, padx=8, pady=4)
 
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
@@ -610,6 +675,10 @@ class App(tk.Tk):
         self.chk_auto.config(text=t("chk_autoset"))
         self.chk_autorun_srv.config(text=t("chk_autorun_srv"))
         self.chk_autostart.config(text=t("chk_autostart"))
+        priv_key = "lbl_priv_ok" if self._admin else "lbl_priv_no"
+        self.lbl_priv.config(text=t(priv_key))
+        if self.btn_runas:
+            self.btn_runas.config(text=t("btn_runas"))
         self.fr_srv.config(text=t("fr_server"))
         self.lbl_iface.config(text=t("lbl_iface"))
         self.lbl_inport.config(text=t("lbl_inport"))
@@ -869,6 +938,12 @@ class App(tk.Tk):
     def _quit(self):
         self._stop()
         self.destroy()
+
+    def _do_restart_as_admin(self):
+        self._collect_cfg()
+        save_config(self.cfg)   # сохранить настройки перед перезапуском
+        self._stop()
+        restart_as_admin()
 
     def _toggle_autostart(self):
         self._collect_cfg()
