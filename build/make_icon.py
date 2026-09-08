@@ -15,10 +15,10 @@ def make_icon(out_path: Path):
 
     if src.exists():
         img = Image.open(src).convert("RGBA")
-        print(f"  Используется {src.name} ({img.size[0]}×{img.size[1]})")
+        print(f"  Icon: {src.name} ({img.size[0]}x{img.size[1]})")
         frames = [img.resize((s, s), Image.LANCZOS) for s in sizes]
     else:
-        print("  icon.png не найден — генерируем иконку")
+        print("  icon.png not found — generating default icon")
         from PIL import ImageDraw
         frames = []
         for sz in sizes:
@@ -37,7 +37,7 @@ def make_icon(out_path: Path):
     frames[0].save(out_path, format="ICO",
                    sizes=[(s, s) for s in sizes],
                    append_images=frames[1:])
-    print(f"  Сохранено → {out_path}")
+    print(f"  Saved -> {out_path}")
 
 
 if __name__ == "__main__":
