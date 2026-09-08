@@ -36,7 +36,8 @@ LANGS = {
         "lbl_inport":     "Порт входящий:",
         "btn_start":      "▶  Запустить сервер",
         "btn_stop":       "■  Остановить",
-        "btn_sync":       "⟳  Синхр. сейчас",
+        "btn_sync":       "⟳  Синхр. с NTP",
+        "btn_apply_time": "🕐  Установить время на ПК",
         "btn_save":       "✎  Сохранить",
         "fr_status":      " Состояние ",
         "lbl_localtime":  "Местное время:",
@@ -62,6 +63,7 @@ LANGS = {
         "about_title":    "Об авторе",
         "about_body":     "TimSyn — NTP синхронизация времени\n\nРазработано: MIDGRO.UZ\nСайт: https://midgro.uz\nКонтакт: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nРаспространяется под лицензией MOAL v1.0\n(можно использовать и продавать при упоминании MIDGRO.UZ)",
         "chk_autostart":  "Автозапуск при старте системы",
+        "chk_autorun_srv":"Запускать сервер автоматически",
         "tray_show":      "Открыть",
         "tray_sync":      "Синхр. сейчас",
         "tray_exit":      "Выход",
@@ -79,7 +81,8 @@ LANGS = {
         "lbl_inport":     "Listen Port:",
         "btn_start":      "▶  Start Server",
         "btn_stop":       "■  Stop",
-        "btn_sync":       "⟳  Sync Now",
+        "btn_sync":       "⟳  Sync from NTP",
+        "btn_apply_time": "🕐  Set Time on This PC",
         "btn_save":       "✎  Save Settings",
         "fr_status":      " Status ",
         "lbl_localtime":  "Local Time:",
@@ -105,6 +108,7 @@ LANGS = {
         "about_title":    "About",
         "about_body":     "TimSyn — NTP Time Synchronization\n\nDeveloped by: MIDGRO.UZ\nWebsite: https://midgro.uz\nContact: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nDistributed under MOAL v1.0\n(free to use and sell with attribution to MIDGRO.UZ)",
         "chk_autostart":  "Run at system startup",
+        "chk_autorun_srv":"Start server automatically",
         "tray_show":      "Open",
         "tray_sync":      "Sync Now",
         "tray_exit":      "Exit",
@@ -122,7 +126,8 @@ LANGS = {
         "lbl_inport":     "Kirish Porti:",
         "btn_start":      "▶  Serverni Ishga Tushirish",
         "btn_stop":       "■  To'xtatish",
-        "btn_sync":       "⟳  Hozir Sinxr.",
+        "btn_sync":       "⟳  NTP dan Sinxr.",
+        "btn_apply_time": "🕐  Bu PK ga vaqt o'rnatish",
         "btn_save":       "✎  Saqlash",
         "fr_status":      " Holat ",
         "lbl_localtime":  "Mahalliy Vaqt:",
@@ -148,6 +153,7 @@ LANGS = {
         "about_title":    "Muallif haqida",
         "about_body":     "TimSyn — NTP Vaqt Sinxronizatsiyasi\n\nIshlab chiqaruvchi: MIDGRO.UZ\nSayt: https://midgro.uz\nAloqa: info@midgro.uz\n\n© 2026 MIDGRO.UZ\nMOAL v1.0 litsenziyasi asosida tarqatiladi\n(MIDGRO.UZ ni eslatgan holda foydalanish va sotish mumkin)",
         "chk_autostart":  "Tizim ishga tushganda avtomatik yoqilsin",
+        "chk_autorun_srv":"Serverni avtomatik ishga tushirish",
         "tray_show":      "Ochish",
         "tray_sync":      "Hozir sinxr.",
         "tray_exit":      "Chiqish",
@@ -316,13 +322,15 @@ def _autostart_linux(name: str, exe: str, enable: bool):
 CONFIG_PATH = Path.home() / ".timsyn_server.json"
 
 DEFAULTS = {
-    "upstream_ntp":   "pool.ntp.org",
-    "upstream_port":  123,
-    "listen_host":    "0.0.0.0",
-    "listen_port":    123,
-    "sync_interval":  300,
-    "auto_apply":     True,
-    "language":       "RU",
+    "upstream_ntp":    "pool.ntp.org",
+    "upstream_port":   123,
+    "listen_host":     "0.0.0.0",
+    "listen_port":     123,
+    "sync_interval":   300,
+    "auto_apply":      True,
+    "autostart":       False,
+    "autorun_server":  True,
+    "language":        "RU",
 }
 
 
@@ -418,6 +426,9 @@ class App(tk.Tk):
         self._set_window_icon()
         self._tick()
         self._init_tray()
+        # запустить сервер автоматически после инициализации UI
+        if self.cfg.get("autorun_server", True):
+            self.after(500, self._start)
 
     # ── перевод ──────────────────────────────────────────────────────────────
 
@@ -464,11 +475,16 @@ class App(tk.Tk):
                                          variable=self.v_auto_apply)
         self.chk_auto.grid(row=1, column=2, columnspan=2, sticky="w", **P)
 
+        self.v_autorun_srv = tk.BooleanVar(value=self.cfg.get("autorun_server", True))
+        self.chk_autorun_srv = ttk.Checkbutton(self.fr_up, text="",
+                                                variable=self.v_autorun_srv)
+        self.chk_autorun_srv.grid(row=2, column=0, columnspan=2, sticky="w", **P)
+
         self.v_autostart = tk.BooleanVar(value=self.cfg.get("autostart", False))
         self.chk_autostart = ttk.Checkbutton(self.fr_up, text="",
                                               variable=self.v_autostart,
                                               command=self._toggle_autostart)
-        self.chk_autostart.grid(row=2, column=0, columnspan=4, sticky="w", **P)
+        self.chk_autostart.grid(row=2, column=2, columnspan=2, sticky="w", **P)
 
         # — Сервер локалки —
         self.fr_srv = ttk.LabelFrame(self, text="")
@@ -497,6 +513,8 @@ class App(tk.Tk):
         self.btn_stop.pack(side="left", padx=4)
         self.btn_sync = ttk.Button(fr_btn, text="", command=self._sync_now)
         self.btn_sync.pack(side="left", padx=4)
+        self.btn_apply_time = ttk.Button(fr_btn, text="", command=self._apply_time_now)
+        self.btn_apply_time.pack(side="left", padx=4)
         self.btn_save = ttk.Button(fr_btn, text="", command=self._save_cfg)
         self.btn_save.pack(side="left", padx=4)
         self.btn_about = ttk.Button(fr_btn, text="", command=self._show_about)
@@ -545,6 +563,7 @@ class App(tk.Tk):
         self.lbl_outport.config(text=t("lbl_outport"))
         self.lbl_interval.config(text=t("lbl_interval"))
         self.chk_auto.config(text=t("chk_autoset"))
+        self.chk_autorun_srv.config(text=t("chk_autorun_srv"))
         self.chk_autostart.config(text=t("chk_autostart"))
         self.fr_srv.config(text=t("fr_server"))
         self.lbl_iface.config(text=t("lbl_iface"))
@@ -552,6 +571,7 @@ class App(tk.Tk):
         self.btn_start.config(text=t("btn_start"))
         self.btn_stop.config(text=t("btn_stop"))
         self.btn_sync.config(text=t("btn_sync"))
+        self.btn_apply_time.config(text=t("btn_apply_time"))
         self.btn_save.config(text=t("btn_save"))
         self.btn_about.config(text=t("btn_about"))
         self.fr_st.config(text=t("fr_status"))
@@ -600,14 +620,15 @@ class App(tk.Tk):
 
     def _collect_cfg(self):
         self.cfg.update({
-            "upstream_ntp":  self.v_upstream.get().strip(),
-            "upstream_port": self.v_up_port.get(),
-            "listen_host":   self.v_listen_host.get().strip(),
-            "listen_port":   self.v_listen_port.get(),
-            "sync_interval": self.v_interval.get(),
-            "auto_apply":    self.v_auto_apply.get(),
-            "autostart":     self.v_autostart.get(),
-            "language":      self._lang,
+            "upstream_ntp":   self.v_upstream.get().strip(),
+            "upstream_port":  self.v_up_port.get(),
+            "listen_host":    self.v_listen_host.get().strip(),
+            "listen_port":    self.v_listen_port.get(),
+            "sync_interval":  self.v_interval.get(),
+            "auto_apply":     self.v_auto_apply.get(),
+            "autostart":      self.v_autostart.get(),
+            "autorun_server": self.v_autorun_srv.get(),
+            "language":       self._lang,
         })
 
     def _save_cfg(self):
@@ -672,6 +693,30 @@ class App(tk.Tk):
                         self._log(LANGS[self._lang]["log_time_set"].format(msg))
 
                 self.after(0, _ui)
+            except Exception as e:
+                self.after(0, lambda: self._log(
+                    LANGS[self._lang]["log_sync_err"].format(e)))
+
+        threading.Thread(target=_do, daemon=True).start()
+
+    def _apply_time_now(self):
+        """Синхронизировать время на этом ПК с собственного NTP (или последнего NTP-времени)."""
+        host = self.v_listen_host.get().strip()
+        port = self.v_listen_port.get()
+        # если сервер запущен — берём с себя, иначе — с upstream
+        if self.ntp_srv:
+            src_host = "127.0.0.1"
+            src_port = port
+        else:
+            src_host = self.v_upstream.get().strip()
+            src_port = self.v_up_port.get()
+
+        def _do():
+            try:
+                t = query_ntp(src_host, src_port)
+                ok, msg = set_system_time(t)
+                self.after(0, lambda: self._log(
+                    LANGS[self._lang]["log_time_set"].format(msg)))
             except Exception as e:
                 self.after(0, lambda: self._log(
                     LANGS[self._lang]["log_sync_err"].format(e)))
