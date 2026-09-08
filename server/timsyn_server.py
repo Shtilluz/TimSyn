@@ -1,0 +1,620 @@
+#!/usr/bin/env python3
+"""
+TimSyn Server
+Синхронизирует время с NTP-серверами и раздаёт как NTP-сервер в локальную сеть.
+Только стандартная библиотека Python — дополнительные пакеты не нужны.
+"""
+
+import ctypes
+import datetime
+import json
+import os
+import platform
+import socket
+import struct
+import subprocess
+import threading
+import time
+from pathlib import Path
+import tkinter as tk
+from tkinter import messagebox, scrolledtext, ttk
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Переводы / Translations / Tarjimalar
+# ═══════════════════════════════════════════════════════════════════════════════
+
+LANGS = {
+    "RU": {
+        "title":          "TimSyn Сервер",
+        "fr_upstream":    " Источник NTP (интернет) ",
+        "lbl_ntpserver":  "NTP-сервер:",
+        "lbl_outport":    "Порт исходящий:",
+        "lbl_interval":   "Интервал синхр. (сек):",
+        "chk_autoset":    "Авто-установка времени на этом ПК",
+        "fr_server":      " NTP-сервер для локальной сети ",
+        "lbl_iface":      "Интерфейс:",
+        "lbl_inport":     "Порт входящий:",
+        "btn_start":      "▶  Запустить сервер",
+        "btn_stop":       "■  Остановить",
+        "btn_sync":       "⟳  Синхр. сейчас",
+        "btn_save":       "✎  Сохранить",
+        "fr_status":      " Состояние ",
+        "lbl_localtime":  "Местное время:",
+        "lbl_ntptime":    "NTP-время:",
+        "lbl_offset":     "Отклонение:",
+        "srv_stopped":    "Сервер остановлен",
+        "srv_running":    "Сервер работает",
+        "saved":          "Настройки сохранены",
+        "err_start":      "Ошибка запуска",
+        "log_srv_listen": "Слушаем {}:{}",
+        "log_srv_stop":   "Сервер остановлен",
+        "log_srv_req":    "Запрос от {}:{}",
+        "log_srv_pkterr": "Ошибка пакета: {}",
+        "log_sync_ok":    "[SYNC] {} → отклонение {}{:.3f} с",
+        "log_sync_err":   "[SYNC] Ошибка: {}",
+        "log_time_set":   "[ВРЕМЯ] Установка: {}",
+        "log_cfg_saved":  "[CFG] Настройки сохранены",
+        "err_port":       "Не удалось открыть порт {}:\n{}\nПорты < 1024 требуют прав администратора/root.",
+        "win_confirm":    "Вы уверены, что хотите выйти?",
+        "win_close":      "Выход",
+        "fr_lang":        " Язык / Language ",
+    },
+    "EN": {
+        "title":          "TimSyn Server",
+        "fr_upstream":    " Upstream NTP Source (Internet) ",
+        "lbl_ntpserver":  "NTP Server:",
+        "lbl_outport":    "Outgoing Port:",
+        "lbl_interval":   "Sync Interval (sec):",
+        "chk_autoset":    "Auto-set time on this PC",
+        "fr_server":      " NTP Server for Local Network ",
+        "lbl_iface":      "Interface:",
+        "lbl_inport":     "Listen Port:",
+        "btn_start":      "▶  Start Server",
+        "btn_stop":       "■  Stop",
+        "btn_sync":       "⟳  Sync Now",
+        "btn_save":       "✎  Save Settings",
+        "fr_status":      " Status ",
+        "lbl_localtime":  "Local Time:",
+        "lbl_ntptime":    "NTP Time:",
+        "lbl_offset":     "Offset:",
+        "srv_stopped":    "Server stopped",
+        "srv_running":    "Server running",
+        "saved":          "Settings saved",
+        "err_start":      "Start Error",
+        "log_srv_listen": "Listening on {}:{}",
+        "log_srv_stop":   "Server stopped",
+        "log_srv_req":    "Request from {}:{}",
+        "log_srv_pkterr": "Packet error: {}",
+        "log_sync_ok":    "[SYNC] {} → offset {}{:.3f} s",
+        "log_sync_err":   "[SYNC] Error: {}",
+        "log_time_set":   "[TIME] Set result: {}",
+        "log_cfg_saved":  "[CFG] Settings saved",
+        "err_port":       "Cannot open port {}:\n{}\nPorts < 1024 require administrator/root.",
+        "win_confirm":    "Are you sure you want to exit?",
+        "win_close":      "Exit",
+        "fr_lang":        " Language ",
+    },
+    "UZ": {
+        "title":          "TimSyn Server",
+        "fr_upstream":    " NTP Manbai (Internet) ",
+        "lbl_ntpserver":  "NTP Server:",
+        "lbl_outport":    "Chiqish Porti:",
+        "lbl_interval":   "Sinxr. Intervali (sek):",
+        "chk_autoset":    "Ushbu PK vaqtini avtomatik o'rnatish",
+        "fr_server":      " Lokal Tarmoq uchun NTP Server ",
+        "lbl_iface":      "Interfeys:",
+        "lbl_inport":     "Kirish Porti:",
+        "btn_start":      "▶  Serverni Ishga Tushirish",
+        "btn_stop":       "■  To'xtatish",
+        "btn_sync":       "⟳  Hozir Sinxr.",
+        "btn_save":       "✎  Saqlash",
+        "fr_status":      " Holat ",
+        "lbl_localtime":  "Mahalliy Vaqt:",
+        "lbl_ntptime":    "NTP Vaqti:",
+        "lbl_offset":     "Farq:",
+        "srv_stopped":    "Server to'xtatildi",
+        "srv_running":    "Server ishlayapti",
+        "saved":          "Sozlamalar saqlandi",
+        "err_start":      "Ishga tushirish xatosi",
+        "log_srv_listen": "Tinglanmoqda {}:{}",
+        "log_srv_stop":   "Server to'xtatildi",
+        "log_srv_req":    "So'rov {}:{}",
+        "log_srv_pkterr": "Paket xatosi: {}",
+        "log_sync_ok":    "[SYNC] {} → farq {}{:.3f} s",
+        "log_sync_err":   "[SYNC] Xato: {}",
+        "log_time_set":   "[VAQT] O'rnatish natijasi: {}",
+        "log_cfg_saved":  "[CFG] Sozlamalar saqlandi",
+        "err_port":       "Port {} ochib bo'lmadi:\n{}\n1024 dan kichik portlar administrator/root huquqi talab qiladi.",
+        "win_confirm":    "Haqiqatan ham chiqmoqchimisiz?",
+        "win_close":      "Chiqish",
+        "fr_lang":        " Til / Language ",
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  NTP protokol
+# ═══════════════════════════════════════════════════════════════════════════════
+
+NTP_DELTA = 2208988800
+_FMT      = "!B B b b I I I I I I I I I I I"   # 48 байт
+
+
+def _to_ntp(unix: float):
+    t = unix + NTP_DELTA
+    s = int(t)
+    f = int((t - s) * 2**32)
+    return s, f
+
+
+def _from_ntp(s: int, f: int) -> float:
+    return s + f / 2**32 - NTP_DELTA
+
+
+def _make_client_pkt() -> bytes:
+    ts, tf = _to_ntp(time.time())
+    return struct.pack(_FMT,
+        (0 << 6) | (3 << 3) | 3,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ts, tf,
+    )
+
+
+def _make_server_pkt(orig_s: int, orig_f: int) -> bytes:
+    now     = time.time()
+    rs, rf  = _to_ntp(now)
+    ts, tf  = _to_ntp(time.time())
+    return struct.pack(_FMT,
+        (0 << 6) | (3 << 3) | 4,
+        2, 4, -20,
+        0, 0, 0,
+        rs, rf,
+        orig_s, orig_f,
+        rs, rf,
+        ts, tf,
+    )
+
+
+def query_ntp(host: str, port: int = 123, timeout: float = 5.0) -> float:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(timeout)
+        s.sendto(_make_client_pkt(), (host, port))
+        data, _ = s.recvfrom(1024)
+    u = struct.unpack(_FMT, data[:48])
+    return _from_ntp(u[13], u[14])
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Системное время
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def set_system_time(unix_ts: float):
+    try:
+        if platform.system() == "Windows":
+            return _set_win(unix_ts)
+        return _set_linux(unix_ts)
+    except Exception as e:
+        return False, str(e)
+
+
+def _set_win(unix_ts: float):
+    class _ST(ctypes.Structure):
+        _fields_ = [
+            ("wYear",         ctypes.c_uint16),
+            ("wMonth",        ctypes.c_uint16),
+            ("wDayOfWeek",    ctypes.c_uint16),
+            ("wDay",          ctypes.c_uint16),
+            ("wHour",         ctypes.c_uint16),
+            ("wMinute",       ctypes.c_uint16),
+            ("wSecond",       ctypes.c_uint16),
+            ("wMilliseconds", ctypes.c_uint16),
+        ]
+    dt = datetime.datetime.utcfromtimestamp(unix_ts)
+    st = _ST(wYear=dt.year, wMonth=dt.month, wDay=dt.day,
+             wHour=dt.hour, wMinute=dt.minute, wSecond=dt.second,
+             wMilliseconds=dt.microsecond // 1000)
+    ok = bool(ctypes.windll.kernel32.SetSystemTime(ctypes.byref(st)))
+    return ok, "OK" if ok else "SetSystemTime failed (run as Administrator)"
+
+
+def _set_linux(unix_ts: float):
+    try:
+        class _TS(ctypes.Structure):
+            _fields_ = [("tv_sec", ctypes.c_long), ("tv_nsec", ctypes.c_long)]
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+        ts   = _TS(tv_sec=int(unix_ts),
+                   tv_nsec=int((unix_ts % 1) * 1_000_000_000))
+        if libc.clock_settime(0, ctypes.byref(ts)) == 0:
+            return True, "OK"
+        err = ctypes.get_errno()
+        raise OSError(err, os.strerror(err))
+    except Exception:
+        pass
+    try:
+        dt  = datetime.datetime.utcfromtimestamp(unix_ts)
+        cmd = ["sudo", "date", "-u", "-s", dt.strftime("%Y-%m-%d %H:%M:%S")]
+        r   = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0:
+            return True, "OK (sudo date)"
+        return False, r.stderr.strip() or "sudo date failed"
+    except Exception as e2:
+        return False, f"clock_settime: permission denied; sudo date: {e2}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Конфиг
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CONFIG_PATH = Path.home() / ".timsyn_server.json"
+
+DEFAULTS = {
+    "upstream_ntp":   "pool.ntp.org",
+    "upstream_port":  123,
+    "listen_host":    "0.0.0.0",
+    "listen_port":    123,
+    "sync_interval":  300,
+    "auto_apply":     True,
+    "language":       "RU",
+}
+
+
+def load_config() -> dict:
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cfg = dict(DEFAULTS)
+            cfg.update(data)
+            return cfg
+        except Exception:
+            pass
+    return dict(DEFAULTS)
+
+
+def save_config(cfg: dict):
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  NTP-сервер (UDP listener thread)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class NTPServer:
+    def __init__(self, host: str, port: int, log_cb):
+        self.host     = host
+        self.port     = port
+        self.log_cb   = log_cb
+        self._sock    = None
+        self._thread  = None
+        self._running = False
+
+    def start(self, tr):
+        if self._running:
+            return
+        try:
+            self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self._sock.bind((self.host, self.port))
+            self._sock.settimeout(1.0)
+        except OSError as e:
+            raise RuntimeError(tr("err_port").format(self.port, e))
+        self._running = True
+        self._thread  = threading.Thread(target=self._serve, daemon=True)
+        self._thread.start()
+        self.log_cb(tr("log_srv_listen").format(self.host, self.port))
+
+    def stop(self, tr):
+        self._running = False
+        if self._sock:
+            try:
+                self._sock.close()
+            except Exception:
+                pass
+        self.log_cb(tr("log_srv_stop"))
+
+    def _serve(self):
+        while self._running:
+            try:
+                data, addr = self._sock.recvfrom(1024)
+            except socket.timeout:
+                continue
+            except Exception:
+                break
+            try:
+                u        = struct.unpack(_FMT, data[:48])
+                response = _make_server_pkt(u[13], u[14])
+                self._sock.sendto(response, addr)
+                # log через callback — нельзя передавать tr напрямую в поток,
+                # поэтому кладём текст готовым
+                self.log_cb(f"REQ {addr[0]}:{addr[1]}")
+            except Exception as e:
+                self.log_cb(f"ERR {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  GUI
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.cfg       = load_config()
+        self._lang     = self.cfg.get("language", "RU")
+        self.ntp_srv   = None
+        self._sync_job = None
+        self.resizable(False, False)
+        self._build_ui()
+        self._apply_lang()
+        self._tick()
+
+    # ── перевод ──────────────────────────────────────────────────────────────
+
+    def tr(self, key: str) -> str:
+        return LANGS[self._lang].get(key, key)
+
+    # ── построение виджетов ───────────────────────────────────────────────────
+
+    def _build_ui(self):
+        P = {"padx": 8, "pady": 4}
+
+        # — Язык —
+        self.fr_lang = ttk.LabelFrame(self, text="")
+        self.fr_lang.grid(row=0, column=0, columnspan=2, sticky="ew", **P)
+        self.v_lang = tk.StringVar(value=self._lang)
+        for code in ("RU", "EN", "UZ"):
+            ttk.Radiobutton(self.fr_lang, text=code, value=code,
+                            variable=self.v_lang,
+                            command=self._on_lang_change).pack(side="left", padx=6, pady=2)
+
+        # — Источник NTP —
+        self.fr_up = ttk.LabelFrame(self, text="")
+        self.fr_up.grid(row=1, column=0, columnspan=2, sticky="ew", **P)
+
+        self.lbl_ntpserver = ttk.Label(self.fr_up, text="")
+        self.lbl_ntpserver.grid(row=0, column=0, sticky="w", **P)
+        self.v_upstream = tk.StringVar(value=self.cfg["upstream_ntp"])
+        ttk.Entry(self.fr_up, textvariable=self.v_upstream, width=28).grid(row=0, column=1, sticky="ew", **P)
+
+        self.lbl_outport = ttk.Label(self.fr_up, text="")
+        self.lbl_outport.grid(row=0, column=2, sticky="w", **P)
+        self.v_up_port = tk.IntVar(value=self.cfg["upstream_port"])
+        ttk.Spinbox(self.fr_up, textvariable=self.v_up_port,
+                    from_=1, to=65535, width=7).grid(row=0, column=3, **P)
+
+        self.lbl_interval = ttk.Label(self.fr_up, text="")
+        self.lbl_interval.grid(row=1, column=0, sticky="w", **P)
+        self.v_interval = tk.IntVar(value=self.cfg["sync_interval"])
+        ttk.Spinbox(self.fr_up, textvariable=self.v_interval,
+                    from_=30, to=86400, width=7).grid(row=1, column=1, sticky="w", **P)
+
+        self.v_auto_apply = tk.BooleanVar(value=self.cfg["auto_apply"])
+        self.chk_auto = ttk.Checkbutton(self.fr_up, text="",
+                                         variable=self.v_auto_apply)
+        self.chk_auto.grid(row=1, column=2, columnspan=2, sticky="w", **P)
+
+        # — Сервер локалки —
+        self.fr_srv = ttk.LabelFrame(self, text="")
+        self.fr_srv.grid(row=2, column=0, columnspan=2, sticky="ew", **P)
+
+        self.lbl_iface = ttk.Label(self.fr_srv, text="")
+        self.lbl_iface.grid(row=0, column=0, sticky="w", **P)
+        self.v_listen_host = tk.StringVar(value=self.cfg["listen_host"])
+        self.cb_host = ttk.Combobox(self.fr_srv, textvariable=self.v_listen_host,
+                                    width=18, values=["0.0.0.0"] + self._local_ips())
+        self.cb_host.grid(row=0, column=1, **P)
+
+        self.lbl_inport = ttk.Label(self.fr_srv, text="")
+        self.lbl_inport.grid(row=0, column=2, sticky="w", **P)
+        self.v_listen_port = tk.IntVar(value=self.cfg["listen_port"])
+        ttk.Spinbox(self.fr_srv, textvariable=self.v_listen_port,
+                    from_=1, to=65535, width=7).grid(row=0, column=3, **P)
+
+        # — Кнопки —
+        fr_btn = ttk.Frame(self)
+        fr_btn.grid(row=3, column=0, columnspan=2, **P)
+
+        self.btn_start = ttk.Button(fr_btn, text="", command=self._start)
+        self.btn_start.pack(side="left", padx=4)
+        self.btn_stop = ttk.Button(fr_btn, text="", command=self._stop, state="disabled")
+        self.btn_stop.pack(side="left", padx=4)
+        self.btn_sync = ttk.Button(fr_btn, text="", command=self._sync_now)
+        self.btn_sync.pack(side="left", padx=4)
+        self.btn_save = ttk.Button(fr_btn, text="", command=self._save_cfg)
+        self.btn_save.pack(side="left", padx=4)
+
+        # — Статус —
+        self.fr_st = ttk.LabelFrame(self, text="")
+        self.fr_st.grid(row=4, column=0, columnspan=2, sticky="ew", **P)
+
+        self.lbl_lt_key = ttk.Label(self.fr_st, text="")
+        self.lbl_lt_key.grid(row=0, column=0, sticky="w", **P)
+        self.lbl_local = ttk.Label(self.fr_st, text="—",
+                                   foreground="#005cc5", font=("Courier", 11, "bold"))
+        self.lbl_local.grid(row=0, column=1, sticky="w", **P)
+
+        self.lbl_nt_key = ttk.Label(self.fr_st, text="")
+        self.lbl_nt_key.grid(row=1, column=0, sticky="w", **P)
+        self.lbl_ntp = ttk.Label(self.fr_st, text="—",
+                                  foreground="#22863a", font=("Courier", 11, "bold"))
+        self.lbl_ntp.grid(row=1, column=1, sticky="w", **P)
+
+        self.lbl_off_key = ttk.Label(self.fr_st, text="")
+        self.lbl_off_key.grid(row=2, column=0, sticky="w", **P)
+        self.lbl_offset = ttk.Label(self.fr_st, text="—")
+        self.lbl_offset.grid(row=2, column=1, sticky="w", **P)
+
+        self.lbl_status = ttk.Label(self.fr_st, text="", foreground="gray")
+        self.lbl_status.grid(row=3, column=0, columnspan=2, sticky="w", **P)
+
+        # — Лог —
+        self.log = scrolledtext.ScrolledText(self, height=12, width=74,
+                                              state="disabled", font=("Courier", 9))
+        self.log.grid(row=5, column=0, columnspan=2, padx=8, pady=4)
+
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
+    # ── применить язык ────────────────────────────────────────────────────────
+
+    def _apply_lang(self):
+        t = self.tr
+        self.title(t("title"))
+        self.fr_lang.config(text=t("fr_lang"))
+        self.fr_up.config(text=t("fr_upstream"))
+        self.lbl_ntpserver.config(text=t("lbl_ntpserver"))
+        self.lbl_outport.config(text=t("lbl_outport"))
+        self.lbl_interval.config(text=t("lbl_interval"))
+        self.chk_auto.config(text=t("chk_autoset"))
+        self.fr_srv.config(text=t("fr_server"))
+        self.lbl_iface.config(text=t("lbl_iface"))
+        self.lbl_inport.config(text=t("lbl_inport"))
+        self.btn_start.config(text=t("btn_start"))
+        self.btn_stop.config(text=t("btn_stop"))
+        self.btn_sync.config(text=t("btn_sync"))
+        self.btn_save.config(text=t("btn_save"))
+        self.fr_st.config(text=t("fr_status"))
+        self.lbl_lt_key.config(text=t("lbl_localtime"))
+        self.lbl_nt_key.config(text=t("lbl_ntptime"))
+        self.lbl_off_key.config(text=t("lbl_offset"))
+        if self.ntp_srv:
+            self.lbl_status.config(
+                text=f"{t('srv_running')}  ·  {self.cfg['listen_host']}:{self.cfg['listen_port']}",
+                foreground="#22863a")
+        else:
+            self.lbl_status.config(text=t("srv_stopped"), foreground="gray")
+
+    def _on_lang_change(self):
+        self._lang = self.v_lang.get()
+        self._apply_lang()
+
+    # ── вспомогательные ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def _local_ips():
+        ips = []
+        try:
+            for info in socket.getaddrinfo(socket.gethostname(), None):
+                ip = info[4][0]
+                if ip not in ips and ":" not in ip:
+                    ips.append(ip)
+        except Exception:
+            pass
+        return ips
+
+    def _log(self, msg: str):
+        ts   = datetime.datetime.now().strftime("%H:%M:%S")
+        line = f"[{ts}] {msg}\n"
+        self.log.configure(state="normal")
+        self.log.insert("end", line)
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    def _tick(self):
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
+        self.lbl_local.config(text=now_str)
+        self.after(1000, self._tick)
+
+    # ── действия ──────────────────────────────────────────────────────────────
+
+    def _collect_cfg(self):
+        self.cfg.update({
+            "upstream_ntp":  self.v_upstream.get().strip(),
+            "upstream_port": self.v_up_port.get(),
+            "listen_host":   self.v_listen_host.get().strip(),
+            "listen_port":   self.v_listen_port.get(),
+            "sync_interval": self.v_interval.get(),
+            "auto_apply":    self.v_auto_apply.get(),
+            "language":      self._lang,
+        })
+
+    def _save_cfg(self):
+        self._collect_cfg()
+        save_config(self.cfg)
+        self._log(self.tr("log_cfg_saved"))
+
+    def _start(self):
+        self._collect_cfg()
+        save_config(self.cfg)
+        srv = NTPServer(self.cfg["listen_host"], self.cfg["listen_port"], self._log)
+        try:
+            srv.start(self.tr)
+        except RuntimeError as e:
+            messagebox.showerror(self.tr("err_start"), str(e))
+            return
+        self.ntp_srv = srv
+        self.btn_start.config(state="disabled")
+        self.btn_stop.config(state="normal")
+        self.lbl_status.config(
+            text=f"{self.tr('srv_running')}  ·  {self.cfg['listen_host']}:{self.cfg['listen_port']}",
+            foreground="#22863a")
+        self._sync_now()
+        self._schedule_sync()
+
+    def _stop(self):
+        if self.ntp_srv:
+            self.ntp_srv.stop(self.tr)
+            self.ntp_srv = None
+        if self._sync_job:
+            self.after_cancel(self._sync_job)
+            self._sync_job = None
+        self.btn_start.config(state="normal")
+        self.btn_stop.config(state="disabled")
+        self.lbl_status.config(text=self.tr("srv_stopped"), foreground="gray")
+
+    def _sync_now(self):
+        host    = self.v_upstream.get().strip()
+        port    = self.v_up_port.get()
+        auto    = self.v_auto_apply.get()
+        lang    = self._lang
+
+        def _do():
+            try:
+                t      = query_ntp(host, port)
+                offset = t - time.time()
+                sign   = "+" if offset >= 0 else ""
+                color  = ("#22863a" if abs(offset) < 1
+                           else "#b08800" if abs(offset) < 60
+                           else "#d73a49")
+                ts_str = (datetime.datetime.utcfromtimestamp(t)
+                          .strftime("%Y-%m-%d  %H:%M:%S") + " UTC")
+                log_msg = LANGS[lang]["log_sync_ok"].format(host, sign, abs(offset))
+
+                def _ui():
+                    self.lbl_ntp.config(text=ts_str)
+                    self.lbl_offset.config(
+                        text=f"{sign}{abs(offset):.3f} s", foreground=color)
+                    self._log(log_msg)
+                    if auto:
+                        ok, msg = set_system_time(t)
+                        self._log(LANGS[self._lang]["log_time_set"].format(msg))
+
+                self.after(0, _ui)
+            except Exception as e:
+                self.after(0, lambda: self._log(
+                    LANGS[self._lang]["log_sync_err"].format(e)))
+
+        threading.Thread(target=_do, daemon=True).start()
+
+    def _schedule_sync(self):
+        ms = self.v_interval.get() * 1000
+        self._sync_job = self.after(ms, self._on_auto_sync)
+
+    def _on_auto_sync(self):
+        if self.ntp_srv:
+            self._sync_now()
+            self._schedule_sync()
+
+    def on_close(self):
+        self._stop()
+        self.destroy()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def main():
+    app = App()
+    app.protocol("WM_DELETE_WINDOW", app.on_close)
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    main()

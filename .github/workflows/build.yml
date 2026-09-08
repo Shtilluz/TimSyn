@@ -1,0 +1,62 @@
+name: Build TimSyn
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build Server
+        run: pyinstaller --onefile --windowed --name TimSyn_Server server/timsyn_server.py
+
+      - name: Build Client
+        run: pyinstaller --onefile --windowed --name TimSyn_Client client/timsyn_client.py
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimSyn-Windows
+          path: |
+            dist/TimSyn_Server.exe
+            dist/TimSyn_Client.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          sudo apt-get install -y python3-tk
+          pip install pyinstaller
+
+      - name: Build Server
+        run: pyinstaller --onefile --windowed --name TimSyn_Server server/timsyn_server.py
+
+      - name: Build Client
+        run: pyinstaller --onefile --windowed --name TimSyn_Client client/timsyn_client.py
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimSyn-Linux
+          path: |
+            dist/TimSyn_Server
+            dist/TimSyn_Client
