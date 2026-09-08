@@ -28,11 +28,7 @@
 
 TimSyn — internetga ulanmagan izolyatsiya qilingan lokal tarmoqlarda vaqtni sinxronlash uchun mo'ljallangan ikkita yengil grafik dastur.
 
-```
-[Internet] ──► [TimSyn Server] ──► [Lokal Tarmoq]
- pool.ntp.org   (1 ta kompyuter)    TimSyn Client ×N
-                                     (qolgan barcha PKlar)
-```
+![TimSyn — qanday ishlaydi](Prew_uz.png)
 
 **Server** — internetga ulangan bitta kompyuterga o'rnatiladi. NTP dan aniq vaqtni oladi va lokal tarmoqqa tarqatadi.  
 **Mijoz** — qolgan barcha PKlarga o'rnatiladi. Serverdan vaqtni olib, tizim soatini sozlaydi.

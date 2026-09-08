@@ -28,11 +28,7 @@
 
 TimSyn is a pair of lightweight GUI applications for time synchronization in isolated local networks without internet access.
 
-```
-[Internet] ──► [TimSyn Server] ──► [Local Network]
- pool.ntp.org   (1 machine)          TimSyn Client ×N
-                                      (all other PCs)
-```
+![TimSyn — how it works](Prew_en.png)
 
 **Server** — installed on the one machine with internet access. Pulls accurate time from NTP and serves it to the local network.  
 **Client** — installed on all other PCs. Gets time from the server and sets the system clock.
