@@ -4,7 +4,7 @@
 
 </div>
 
-# TimSyn — NTP Time Synchronization Suite
+# TimSyn - NTP Time Synchronization Suite
 
 <div align="center">
 
@@ -28,16 +28,16 @@
 
 TimSyn is a pair of lightweight GUI applications for time synchronization in isolated local networks without internet access.
 
-![TimSyn — how it works](Prew_en.png)
+![TimSyn - how it works](Prew_en.png)
 
-**Server** — installed on the one machine with internet access. Pulls accurate time from NTP and serves it to the local network.  
-**Client** — installed on all other PCs. Gets time from the server and sets the system clock.
+**Server** - installed on the one machine with internet access. Pulls accurate time from NTP and serves it to the local network.  
+**Client** - installed on all other PCs. Gets time from the server and sets the system clock.
 
 ---
 
 ## Why TimSyn and not ntpd / w32tm?
 
-Traditional NTP tools require editing config files, managing services, and knowing your way around the command line — that's fine for sysadmins, but not for everyone.
+Traditional NTP tools require editing config files, managing services, and knowing your way around the command line - that's fine for sysadmins, but not for everyone.
 
 **TimSyn is built for simplicity:**
 
@@ -45,7 +45,7 @@ Traditional NTP tools require editing config files, managing services, and knowi
 |---|---|
 | Edit `/etc/ntp.conf` or Group Policy | Just run the app |
 | Configure firewall rules manually | One port field in the UI |
-| No visual feedback — check logs | Live offset, RTT, color-coded status |
+| No visual feedback - check logs | Live offset, RTT, color-coded status |
 | Separate server and client daemons | One `.exe` per role, double-click to start |
 | Requires IT knowledge to deploy | Works for any user, any PC |
 
@@ -58,14 +58,14 @@ Traditional NTP tools require editing config files, managing services, and knowi
 
 | Feature | Server | Client |
 |---|:---:|:---:|
-| Sync from public NTP (internet) | ✓ | — |
-| Acts as NTP server for local network | ✓ | — |
-| Sync from another TimSyn / NTP server | ✓ | — |
-| Receive time from local network | — | ✓ |
+| Sync from public NTP (internet) | ✓ | - |
+| Acts as NTP server for local network | ✓ | - |
+| Sync from another TimSyn / NTP server | ✓ | - |
+| Receive time from local network | - | ✓ |
 | Set system clock | ✓ | ✓ |
 | Auto-sync on a timer | ✓ | ✓ |
 | Configurable ports (in / out) | ✓ | ✓ |
-| Choose network interface | ✓ | — |
+| Choose network interface | ✓ | - |
 | Show offset and RTT | ✓ | ✓ |
 | EN / RU / UZ interface | ✓ | ✓ |
 | Minimize to system tray | ✓ | ✓ |
@@ -95,7 +95,7 @@ Download the latest build: **[Actions → latest successful run → Artifacts](.
 Server (machine with internet):
   1. Download TimSyn_Server.exe → run as Administrator
   2. Set NTP server (default: pool.ntp.org)
-  3. Click "Start Server" — it starts automatically on launch
+  3. Click "Start Server" - it starts automatically on launch
 
 Client (all other PCs):
   1. Download TimSyn_Client.exe → run
@@ -177,7 +177,7 @@ TimSyn/
 ## License
 
 Distributed under the **MIDGRO Open Attribution License (MOAL) v1.0**.  
-Free to use, modify, and sell — attribution to [MIDGRO.UZ](https://midgro.uz) is required.  
+Free to use, modify, and sell - attribution to [MIDGRO.UZ](https://midgro.uz) is required.  
 Details: [LICENSE](LICENSE)
 
 ---
