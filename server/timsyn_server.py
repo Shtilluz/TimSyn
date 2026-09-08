@@ -13,6 +13,7 @@ import platform
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -1004,7 +1005,28 @@ class App(tk.Tk):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 
+_INSTANCE_LOCK = None
+
+
+def _acquire_instance_lock() -> bool:
+    global _INSTANCE_LOCK
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("127.0.0.1", 50791))
+        _INSTANCE_LOCK = sock
+        return True
+    except OSError:
+        sock.close()
+        return False
+
+
 def main():
+    if not _acquire_instance_lock():
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showwarning("TimSyn Server", "TimSyn Server is already running.")
+        root.destroy()
+        return
     app = App()
     app.protocol("WM_DELETE_WINDOW", app.on_close)
     app.mainloop()
