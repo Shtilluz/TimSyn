@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Сборка TimSyn Server и TimSyn Client в один .exe / один бинарник.
-Требует: pip install pyinstaller
+Требует: pip install pyinstaller pystray Pillow
 
 Запуск:
   python build/build.py
@@ -16,19 +16,18 @@ from pathlib import Path
 
 ROOT  = Path(__file__).parent.parent
 BUILD = Path(__file__).parent
+ICON  = BUILD / "timsyn.ico"
 
 TARGETS = [
-    {
-        "script":   ROOT / "server" / "timsyn_server.py",
-        "name":     "TimSyn_Server",
-        "icon":     None,
-    },
-    {
-        "script":   ROOT / "client" / "timsyn_client.py",
-        "name":     "TimSyn_Client",
-        "icon":     None,
-    },
+    {"script": ROOT / "server" / "timsyn_server.py", "name": "TimSyn_Server"},
+    {"script": ROOT / "client" / "timsyn_client.py", "name": "TimSyn_Client"},
 ]
+
+
+def make_icon():
+    print("\n  Генерация иконки...")
+    from make_icon import make_icon as _make
+    _make(ICON)
 
 
 def build(target: dict):
@@ -39,8 +38,8 @@ def build(target: dict):
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--onefile",               # один файл
-        "--windowed",              # без консольного окна (GUI)
+        "--onefile",
+        "--windowed",
         "--name", name,
         "--distpath", distdir,
         "--workpath", workdir,
@@ -49,15 +48,15 @@ def build(target: dict):
         "--noconfirm",
     ]
 
-    if target.get("icon"):
-        cmd += ["--icon", str(target["icon"])]
+    if ICON.exists():
+        cmd += ["--icon", str(ICON)]
 
     cmd.append(script)
 
     print(f"\n{'='*60}")
     print(f"  Сборка: {name}")
     print(f"{'='*60}")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, cwd=str(BUILD))
     if result.returncode != 0:
         print(f"  ОШИБКА при сборке {name}")
         sys.exit(1)
@@ -65,13 +64,14 @@ def build(target: dict):
 
 
 def main():
-    # Проверить наличие PyInstaller
     try:
         subprocess.run([sys.executable, "-m", "PyInstaller", "--version"],
                        capture_output=True, check=True)
     except subprocess.CalledProcessError:
-        print("PyInstaller не найден. Установите: pip install pyinstaller")
+        print("PyInstaller не найден. Установите: pip install pyinstaller pystray Pillow")
         sys.exit(1)
+
+    make_icon()
 
     for t in TARGETS:
         build(t)

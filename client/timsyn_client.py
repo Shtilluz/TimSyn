@@ -323,6 +323,7 @@ class App(tk.Tk):
         self.resizable(False, False)
         self._build_ui()
         self._apply_lang()
+        self._set_window_icon()
         self._tick()
         self._init_tray()
 
@@ -557,17 +558,36 @@ class App(tk.Tk):
     # ── трей и автозапуск ─────────────────────────────────────────────────────
 
     @staticmethod
-    def _make_tray_icon():
-        from PIL import Image, ImageDraw
-        sz = 64
-        img = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
-        d   = ImageDraw.Draw(img)
-        d.ellipse([2, 2, sz-2, sz-2], fill="#005cc5", outline="#003a8c", width=2)
-        cx, cy = sz // 2, sz // 2
-        d.line([cx, cy, cx, cy - 16], fill="white", width=4)
-        d.line([cx, cy, cx + 13, cy + 4], fill="white", width=3)
+    def _load_icon(size: int = 64):
+        from PIL import Image
+        candidates = [
+            Path(__file__).parent.parent / "icon.png",
+            Path(__file__).parent / "icon.png",
+        ]
+        for p in candidates:
+            if p.exists():
+                return Image.open(p).convert("RGBA").resize((size, size))
+        from PIL import ImageDraw
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        d.ellipse([2, 2, size-2, size-2], fill="#005cc5", outline="#003a8c", width=2)
+        cx, cy = size//2, size//2
+        d.line([cx, cy, cx, cy-size//4], fill="white", width=max(2, size//16))
+        d.line([cx, cy, cx+size//5, cy+size//12], fill="white", width=max(2, size//20))
         d.ellipse([cx-3, cy-3, cx+3, cy+3], fill="white")
         return img
+
+    def _make_tray_icon(self):
+        return self._load_icon(64)
+
+    def _set_window_icon(self):
+        try:
+            from PIL import ImageTk
+            img = self._load_icon(32)
+            self._tk_icon = ImageTk.PhotoImage(img)
+            self.iconphoto(True, self._tk_icon)
+        except Exception:
+            pass
 
     def _init_tray(self):
         try:

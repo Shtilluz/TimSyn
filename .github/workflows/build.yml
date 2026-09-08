@@ -19,11 +19,14 @@ jobs:
       - name: Install dependencies
         run: pip install pyinstaller pystray Pillow
 
+      - name: Generate icon
+        run: python build/make_icon.py
+
       - name: Build Server
-        run: pyinstaller --onefile --windowed --name TimSyn_Server server/timsyn_server.py
+        run: pyinstaller --onefile --windowed --icon build/timsyn.ico --name TimSyn_Server server/timsyn_server.py
 
       - name: Build Client
-        run: pyinstaller --onefile --windowed --name TimSyn_Client client/timsyn_client.py
+        run: pyinstaller --onefile --windowed --icon build/timsyn.ico --name TimSyn_Client client/timsyn_client.py
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -47,11 +50,14 @@ jobs:
           sudo apt-get install -y python3-tk libayatana-appindicator3-dev
           pip install pyinstaller pystray Pillow
 
+      - name: Generate icon
+        run: python build/make_icon.py
+
       - name: Build Server
-        run: pyinstaller --onefile --windowed --name TimSyn_Server server/timsyn_server.py
+        run: pyinstaller --onefile --windowed --icon build/timsyn.ico --name TimSyn_Server server/timsyn_server.py
 
       - name: Build Client
-        run: pyinstaller --onefile --windowed --name TimSyn_Client client/timsyn_client.py
+        run: pyinstaller --onefile --windowed --icon build/timsyn.ico --name TimSyn_Client client/timsyn_client.py
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
