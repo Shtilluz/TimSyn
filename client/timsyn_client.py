@@ -59,6 +59,9 @@ LANGS = {
         "tray_sync":     "Синхр. сейчас",
         "tray_exit":     "Выход",
         "tray_tooltip":  "TimSyn Клиент",
+        "btn_runas":     "🔒  Перезапустить от Администратора",
+        "lbl_priv_ok":   "✔  Права администратора",
+        "lbl_priv_no":   "⚠  Нет прав администратора — установка времени может не работать",
     },
     "EN": {
         "title":         "TimSyn Client",
@@ -94,6 +97,9 @@ LANGS = {
         "tray_sync":     "Sync Now",
         "tray_exit":     "Exit",
         "tray_tooltip":  "TimSyn Client",
+        "btn_runas":     "🔒  Restart as Administrator",
+        "lbl_priv_ok":   "✔  Running as Administrator",
+        "lbl_priv_no":   "⚠  No admin rights — time sync may fail",
     },
     "UZ": {
         "title":         "TimSyn Mijoz",
@@ -129,6 +135,9 @@ LANGS = {
         "tray_sync":     "Hozir sinxr.",
         "tray_exit":     "Chiqish",
         "tray_tooltip":  "TimSyn Mijoz",
+        "btn_runas":     "🔒  Administrator sifatida qayta ishga tushirish",
+        "lbl_priv_ok":   "✔  Administrator huquqlari mavjud",
+        "lbl_priv_no":   "⚠  Administrator huquqi yo'q — vaqt o'rnatish ishlamasligi mumkin",
     },
 }
 
@@ -278,6 +287,35 @@ def _autostart_linux(name: str, exe: str, enable: bool):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Привилегии
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def is_admin() -> bool:
+    try:
+        if platform.system() == "Windows":
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        return os.geteuid() == 0
+    except Exception:
+        return False
+
+
+def restart_as_admin():
+    exe = sys.executable
+    if platform.system() == "Windows":
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, "", None, 1)
+    else:
+        for launcher in ("pkexec", "gksudo", "kdesudo"):
+            if subprocess.call(["which", launcher],
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 0:
+                subprocess.Popen([launcher, exe])
+                break
+        else:
+            subprocess.Popen(["sudo", exe])
+    os._exit(0)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Конфиг
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -390,9 +428,29 @@ class App(tk.Tk):
         self.btn_about = ttk.Button(fr_btn, text="", command=self._show_about)
         self.btn_about.pack(side="left", padx=4)
 
+        # — Строка привилегий —
+        fr_priv = ttk.Frame(self)
+        fr_priv.grid(row=3, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 2))
+
+        self._admin = is_admin()
+        priv_color  = "#22863a" if self._admin else "#d73a49"
+        self.lbl_priv = ttk.Label(fr_priv, text="", foreground=priv_color,
+                                   font=("TkDefaultFont", 9, "bold"))
+        self.lbl_priv.pack(side="left")
+
+        if not self._admin:
+            self.btn_runas = ttk.Button(fr_priv, text="",
+                                        command=self._do_restart_as_admin)
+            self.btn_runas.pack(side="right", padx=4)
+        else:
+            self.btn_runas = None
+
+        ttk.Separator(self, orient="horizontal").grid(
+            row=4, column=0, columnspan=2, sticky="ew", padx=8, pady=2)
+
         # — Статус —
         self.fr_st = ttk.LabelFrame(self, text="")
-        self.fr_st.grid(row=3, column=0, columnspan=2, sticky="ew", **P)
+        self.fr_st.grid(row=5, column=0, columnspan=2, sticky="ew", **P)
 
         self.lbl_lt_key = ttk.Label(self.fr_st, text="")
         self.lbl_lt_key.grid(row=0, column=0, sticky="w", **P)
@@ -423,7 +481,7 @@ class App(tk.Tk):
         # — Лог —
         self.log = scrolledtext.ScrolledText(self, height=10, width=66,
                                               state="disabled", font=("Courier", 9))
-        self.log.grid(row=4, column=0, columnspan=2, padx=8, pady=4)
+        self.log.grid(row=6, column=0, columnspan=2, padx=8, pady=4)
 
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
@@ -448,6 +506,10 @@ class App(tk.Tk):
         self.lbl_st_key.config(text=t("lbl_srvtime"))
         self.lbl_off_key.config(text=t("lbl_offset"))
         self.lbl_rtt_key.config(text=t("lbl_rtt"))
+        priv_key = "lbl_priv_ok" if self._admin else "lbl_priv_no"
+        self.lbl_priv.config(text=t(priv_key))
+        if self.btn_runas:
+            self.btn_runas.config(text=t("btn_runas"))
 
     def _on_lang_change(self):
         self._lang = self.v_lang.get()
@@ -634,6 +696,11 @@ class App(tk.Tk):
         if self._auto_job:
             self.after_cancel(self._auto_job)
         self.destroy()
+
+    def _do_restart_as_admin(self):
+        self._collect_cfg()
+        save_config(self.cfg)
+        restart_as_admin()
 
     def _toggle_autostart(self):
         self._collect_cfg()
