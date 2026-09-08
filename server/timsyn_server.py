@@ -26,9 +26,14 @@ from tkinter import messagebox, scrolledtext, ttk
 LANGS = {
     "RU": {
         "title":          "TimSyn Сервер",
-        "fr_upstream":    " Источник NTP (интернет) ",
+        "fr_upstream":    " Источник синхронизации ",
+        "src_ntp":        "🌐  NTP-сервер (интернет)",
+        "src_timsyn":     "🔗  TimSyn / NTP сервер",
+        "lbl_address":    "Адрес:",
+        "lbl_outport":    "Порт:",
+        "hint_ntp":       "Публичные NTP-серверы в интернете (pool.ntp.org)",
+        "hint_timsyn":    "Другой TimSyn-сервер или NTP-сервер в локальной сети",
         "lbl_ntpserver":  "NTP-сервер:",
-        "lbl_outport":    "Порт исходящий:",
         "lbl_interval":   "Интервал синхр. (сек):",
         "chk_autoset":    "Авто-установка времени на этом ПК",
         "fr_server":      " NTP-сервер для локальной сети ",
@@ -71,9 +76,14 @@ LANGS = {
     },
     "EN": {
         "title":          "TimSyn Server",
-        "fr_upstream":    " Upstream NTP Source (Internet) ",
+        "fr_upstream":    " Sync Source ",
+        "src_ntp":        "🌐  NTP Server (Internet)",
+        "src_timsyn":     "🔗  TimSyn / NTP Server",
+        "lbl_address":    "Address:",
+        "lbl_outport":    "Port:",
+        "hint_ntp":       "Public NTP servers on the internet (pool.ntp.org)",
+        "hint_timsyn":    "Another TimSyn or NTP server on the local network",
         "lbl_ntpserver":  "NTP Server:",
-        "lbl_outport":    "Outgoing Port:",
         "lbl_interval":   "Sync Interval (sec):",
         "chk_autoset":    "Auto-set time on this PC",
         "fr_server":      " NTP Server for Local Network ",
@@ -116,9 +126,14 @@ LANGS = {
     },
     "UZ": {
         "title":          "TimSyn Server",
-        "fr_upstream":    " NTP Manbai (Internet) ",
+        "fr_upstream":    " Sinxronizatsiya Manbai ",
+        "src_ntp":        "🌐  NTP Server (Internet)",
+        "src_timsyn":     "🔗  TimSyn / NTP Server",
+        "lbl_address":    "Manzil:",
+        "lbl_outport":    "Port:",
+        "hint_ntp":       "Internetdagi ommaviy NTP serverlar (pool.ntp.org)",
+        "hint_timsyn":    "Lokal tarmoqdagi boshqa TimSyn yoki NTP server",
         "lbl_ntpserver":  "NTP Server:",
-        "lbl_outport":    "Chiqish Porti:",
         "lbl_interval":   "Sinxr. Intervali (sek):",
         "chk_autoset":    "Ushbu PK vaqtini avtomatik o'rnatish",
         "fr_server":      " Lokal Tarmoq uchun NTP Server ",
@@ -324,6 +339,7 @@ CONFIG_PATH = Path.home() / ".timsyn_server.json"
 DEFAULTS = {
     "upstream_ntp":    "pool.ntp.org",
     "upstream_port":   123,
+    "source_type":     "ntp",        # "ntp" | "timsyn"
     "listen_host":     "0.0.0.0",
     "listen_port":     123,
     "sync_interval":   300,
@@ -452,39 +468,65 @@ class App(tk.Tk):
         # — Источник NTP —
         self.fr_up = ttk.LabelFrame(self, text="")
         self.fr_up.grid(row=1, column=0, columnspan=2, sticky="ew", **P)
+        self.fr_up.columnconfigure(1, weight=1)
 
-        self.lbl_ntpserver = ttk.Label(self.fr_up, text="")
-        self.lbl_ntpserver.grid(row=0, column=0, sticky="w", **P)
+        # — Переключатель источника —
+        self.v_source_type = tk.StringVar(value=self.cfg.get("source_type", "ntp"))
+        self.rb_ntp = ttk.Radiobutton(self.fr_up, text="", value="ntp",
+                                       variable=self.v_source_type,
+                                       command=self._on_source_change)
+        self.rb_ntp.grid(row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(6, 2))
+
+        self.rb_timsyn = ttk.Radiobutton(self.fr_up, text="", value="timsyn",
+                                          variable=self.v_source_type,
+                                          command=self._on_source_change)
+        self.rb_timsyn.grid(row=0, column=2, columnspan=2, sticky="w", padx=8, pady=(6, 2))
+
+        ttk.Separator(self.fr_up, orient="horizontal").grid(
+            row=1, column=0, columnspan=4, sticky="ew", padx=8, pady=2)
+
+        # — Адрес и порт —
+        self.lbl_address = ttk.Label(self.fr_up, text="")
+        self.lbl_address.grid(row=2, column=0, sticky="w", **P)
         self.v_upstream = tk.StringVar(value=self.cfg["upstream_ntp"])
-        ttk.Entry(self.fr_up, textvariable=self.v_upstream, width=28).grid(row=0, column=1, sticky="ew", **P)
+        self.ent_upstream = ttk.Entry(self.fr_up, textvariable=self.v_upstream, width=26)
+        self.ent_upstream.grid(row=2, column=1, sticky="ew", **P)
 
         self.lbl_outport = ttk.Label(self.fr_up, text="")
-        self.lbl_outport.grid(row=0, column=2, sticky="w", **P)
+        self.lbl_outport.grid(row=2, column=2, sticky="w", **P)
         self.v_up_port = tk.IntVar(value=self.cfg["upstream_port"])
         ttk.Spinbox(self.fr_up, textvariable=self.v_up_port,
-                    from_=1, to=65535, width=7).grid(row=0, column=3, **P)
+                    from_=1, to=65535, width=7).grid(row=2, column=3, **P)
 
+        # — Подсказка (меняется при переключении) —
+        self.lbl_src_hint = ttk.Label(self.fr_up, text="", foreground="gray",
+                                       font=("TkDefaultFont", 8))
+        self.lbl_src_hint.grid(row=3, column=0, columnspan=4, sticky="w", padx=10, pady=(0, 4))
+
+        ttk.Separator(self.fr_up, orient="horizontal").grid(
+            row=4, column=0, columnspan=4, sticky="ew", padx=8, pady=2)
+
+        # — Интервал и авто-установка —
         self.lbl_interval = ttk.Label(self.fr_up, text="")
-        self.lbl_interval.grid(row=1, column=0, sticky="w", **P)
+        self.lbl_interval.grid(row=5, column=0, sticky="w", **P)
         self.v_interval = tk.IntVar(value=self.cfg["sync_interval"])
         ttk.Spinbox(self.fr_up, textvariable=self.v_interval,
-                    from_=30, to=86400, width=7).grid(row=1, column=1, sticky="w", **P)
+                    from_=30, to=86400, width=7).grid(row=5, column=1, sticky="w", **P)
 
         self.v_auto_apply = tk.BooleanVar(value=self.cfg["auto_apply"])
-        self.chk_auto = ttk.Checkbutton(self.fr_up, text="",
-                                         variable=self.v_auto_apply)
-        self.chk_auto.grid(row=1, column=2, columnspan=2, sticky="w", **P)
+        self.chk_auto = ttk.Checkbutton(self.fr_up, text="", variable=self.v_auto_apply)
+        self.chk_auto.grid(row=5, column=2, columnspan=2, sticky="w", **P)
 
+        # — Автозапуск —
         self.v_autorun_srv = tk.BooleanVar(value=self.cfg.get("autorun_server", True))
-        self.chk_autorun_srv = ttk.Checkbutton(self.fr_up, text="",
-                                                variable=self.v_autorun_srv)
-        self.chk_autorun_srv.grid(row=2, column=0, columnspan=2, sticky="w", **P)
+        self.chk_autorun_srv = ttk.Checkbutton(self.fr_up, text="", variable=self.v_autorun_srv)
+        self.chk_autorun_srv.grid(row=6, column=0, columnspan=2, sticky="w", **P)
 
         self.v_autostart = tk.BooleanVar(value=self.cfg.get("autostart", False))
         self.chk_autostart = ttk.Checkbutton(self.fr_up, text="",
                                               variable=self.v_autostart,
                                               command=self._toggle_autostart)
-        self.chk_autostart.grid(row=2, column=2, columnspan=2, sticky="w", **P)
+        self.chk_autostart.grid(row=6, column=2, columnspan=2, sticky="w", **P)
 
         # — Сервер локалки —
         self.fr_srv = ttk.LabelFrame(self, text="")
@@ -559,9 +601,12 @@ class App(tk.Tk):
         self.title(t("title"))
         self.fr_lang.config(text=t("fr_lang"))
         self.fr_up.config(text=t("fr_upstream"))
-        self.lbl_ntpserver.config(text=t("lbl_ntpserver"))
+        self.rb_ntp.config(text=t("src_ntp"))
+        self.rb_timsyn.config(text=t("src_timsyn"))
+        self.lbl_address.config(text=t("lbl_address"))
         self.lbl_outport.config(text=t("lbl_outport"))
         self.lbl_interval.config(text=t("lbl_interval"))
+        self._on_source_change()   # обновить подсказку
         self.chk_auto.config(text=t("chk_autoset"))
         self.chk_autorun_srv.config(text=t("chk_autorun_srv"))
         self.chk_autostart.config(text=t("chk_autostart"))
@@ -588,6 +633,18 @@ class App(tk.Tk):
     def _on_lang_change(self):
         self._lang = self.v_lang.get()
         self._apply_lang()
+
+    def _on_source_change(self):
+        """Обновить подсказку и дефолтный адрес при смене источника."""
+        src = self.v_source_type.get()
+        hint = self.tr("hint_ntp") if src == "ntp" else self.tr("hint_timsyn")
+        self.lbl_src_hint.config(text=hint)
+        # предложить адрес по умолчанию если поле пустое или содержит дефолт другого типа
+        current = self.v_upstream.get().strip()
+        if src == "ntp" and current == "":
+            self.v_upstream.set("pool.ntp.org")
+        elif src == "timsyn" and current in ("pool.ntp.org", ""):
+            self.v_upstream.set("")
 
     # ── вспомогательные ───────────────────────────────────────────────────────
 
@@ -622,6 +679,7 @@ class App(tk.Tk):
         self.cfg.update({
             "upstream_ntp":   self.v_upstream.get().strip(),
             "upstream_port":  self.v_up_port.get(),
+            "source_type":    self.v_source_type.get(),
             "listen_host":    self.v_listen_host.get().strip(),
             "listen_port":    self.v_listen_port.get(),
             "sync_interval":  self.v_interval.get(),
